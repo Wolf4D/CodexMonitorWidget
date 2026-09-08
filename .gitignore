@@ -8,6 +8,8 @@ debug/
 build/
 bin/
 obj/
+deploy/
+*.zip
 
 # Qt / QMake generated files
 Makefile*
