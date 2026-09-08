@@ -32,16 +32,28 @@
 
 ## 📸 Interface Preview
 
-<p align="center">
-  <img src="assets/widget_en_expanded.png" alt="Expanded Assistant Mode" width="280" />
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/widget_en_working.png" alt="Live Working Mode" width="280" />
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/widget_en.png" alt="Compact Mode" width="280" />
-</p>
-<p align="center">
-  <i><b>Left:</b> Expanded Mode with Assistant Reply &bull; <b>Center:</b> Live Working Stopwatch &bull; <b>Right:</b> Compact Mode</i>
-</p>
+<table align="center">
+  <thead>
+    <tr>
+      <th align="center">Expanded Mode</th>
+      <th align="center">Live Stopwatch (Working)</th>
+      <th align="center">Compact Mode</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr valign="top">
+      <td align="center">
+        <img src="assets/widget_en_expanded.png" alt="Expanded Mode" width="245" />
+      </td>
+      <td align="center">
+        <img src="assets/widget_en_working.png" alt="Live Working Mode" width="245" />
+      </td>
+      <td align="center">
+        <img src="assets/widget_en.png" alt="Compact Mode" width="245" />
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
