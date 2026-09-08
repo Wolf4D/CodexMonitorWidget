@@ -21,51 +21,27 @@
 </p>
 
 > [!IMPORTANT]
-> **🛡️ Privacy & Security Guarantee / Гарантия безопасности и приватности**:
-> - 🚫 **No Network Connection**: This tool never connects to the internet, remote servers, or telemetry endpoints. *(Инструмент не подключается к сети).*
-> - 🔑 **Zero API Keys & Tokens**: Does not ask for, read, or store OpenAI API keys, auth tokens, or passwords. *(Не запрашивает и не хранит токены).*
-> - 🔒 **No Authorization Needed**: Operates completely standalone without requiring any login or account credentials. *(Не требует авторизации).*
-> - 🛡️ **Zero Data Interception**: Never logs, intercepts, or transmits your code, prompts, chat history, or personal files. *(Не сохраняет и не перехватывает никаких данных).*
-> - 💻 **100% Local Passive Inspection**: It simply reads local process execution flags and monitors active Codex session state files locally on your PC. *(Исключительно локально мониторит состояние сессии Codex).*
+> **🛡️ Privacy & Security Guarantee**:
+> - 🚫 **No Network Connection**: This tool never connects to the internet, remote servers, or telemetry endpoints.
+> - 🔑 **Zero API Keys & Tokens**: Does not ask for, read, or store OpenAI API keys, auth tokens, or passwords.
+> - 🔒 **No Authorization Needed**: Operates completely standalone without requiring any login or account credentials.
+> - 🛡️ **Zero Data Interception**: Never logs, intercepts, or transmits your code, prompts, chat history, or personal files.
+> - 💻 **100% Local Passive Inspection**: Strictly reads local process execution flags and monitors active Codex session state files locally on your machine.
 
 ---
 
-## 📸 Interface Preview (English)
+## 📸 Interface Preview
 
 <p align="center">
-  <img src="assets/widget_en_expanded.png" alt="Codex Monitor Widget English Interface" width="340" />
-  &nbsp;&nbsp;&nbsp;
-  <img src="assets/widget_en_working.png" alt="Codex Monitor Widget Live Working State" width="340" />
+  <img src="assets/widget_en_expanded.png" alt="Expanded Assistant Mode" width="280" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/widget_en_working.png" alt="Live Working Mode" width="280" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/widget_en.png" alt="Compact Mode" width="280" />
 </p>
 <p align="center">
-  <i>Left: Expanded Assistant Reply & Command HUD (Idle) &bull; Right: Live Execution Timers (Working)</i>
+  <i><b>Left:</b> Expanded Mode with Assistant Reply &bull; <b>Center:</b> Live Working Stopwatch &bull; <b>Right:</b> Compact Mode</i>
 </p>
-
-<details>
-<summary><b>🌍 Click to expand Multilingual & Mode Comparisons (EN / RU)</b></summary>
-
-<br />
-
-<table align="center">
-  <tr>
-    <td align="center"><b>English (Compact Mode)</b></td>
-    <td align="center"><b>Russian (Компактный режим)</b></td>
-  </tr>
-  <tr>
-    <td><img src="assets/widget_en.png" alt="English Compact" width="320" /></td>
-    <td><img src="assets/widget_ru.png" alt="Russian Compact" width="320" /></td>
-  </tr>
-  <tr>
-    <td align="center"><b>English (Expanded Mode)</b></td>
-    <td align="center"><b>Russian (Развернутый режим)</b></td>
-  </tr>
-  <tr>
-    <td><img src="assets/widget_en_expanded.png" alt="English Expanded" width="320" /></td>
-    <td><img src="assets/widget_ru_expanded.png" alt="Russian Expanded" width="320" /></td>
-  </tr>
-</table>
-
-</details>
 
 ---
 
@@ -166,13 +142,11 @@ windeployqt release\codex_widget.exe --no-translations --no-system-d3d-compiler
 
 ```
 codex_widget_cpp/
-├── assets/                    # Screenshots and preview graphics
+├── assets/                    # Application preview screenshots
 │   ├── app_icon.png           # High-resolution application icon
-│   ├── widget_en.png          # English UI preview (compact)
-│   ├── widget_en_expanded.png # English UI preview (expanded)
-│   ├── widget_en_working.png  # English UI preview (live working state)
-│   ├── widget_ru.png          # Russian UI preview (compact)
-│   └── widget_ru_expanded.png # Russian UI preview (expanded)
+│   ├── widget_en.png          # English UI preview (compact mode)
+│   ├── widget_en_expanded.png # English UI preview (expanded assistant mode)
+│   └── widget_en_working.png  # English UI preview (active execution mode)
 ├── translations/              # Qt Linguist translation sources
 │   ├── cmw_en.ts / cmw_en.qm  # English localization
 │   └── cmw_ru.ts / cmw_ru.qm  # Russian localization
