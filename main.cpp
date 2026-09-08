@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
         widget.pauseMonitor();
         widget.show();
 
-        auto renderShot = [&](const QString &lang, bool expanded, const QString &outputPath, bool isWorking = false) {
+        auto renderShot = [&](const QString &lang, bool expanded, bool compact, const QString &outputPath, bool isWorking = false) {
             widget.setLanguage(lang);
 
             CodexSnapshot snap;
@@ -69,7 +69,11 @@ int main(int argc, char *argv[])
             snap.lastCommand.isValid = true;
 
             widget.applySnapshot(snap);
-            widget.setMsgTextExpanded(expanded);
+            widget.setCompactMode(compact);
+            if (!compact) {
+                widget.setMsgTextExpanded(expanded);
+            }
+            widget.resize(1, 1);
             widget.adjustSize();
 
             for (int i = 0; i < 25; ++i) {
@@ -82,11 +86,9 @@ int main(int argc, char *argv[])
         };
 
         QDir().mkpath("assets");
-        renderShot("en", false, "assets/widget_en.png", false);
-        renderShot("en", true, "assets/widget_en_expanded.png", false);
-        renderShot("en", false, "assets/widget_en_working.png", true);
-        renderShot("ru", false, "assets/widget_ru.png", false);
-        renderShot("ru", true, "assets/widget_ru_expanded.png", false);
+        renderShot("en", false, true,  "assets/widget_en.png", false);         // True Compact Mode (status + limit only)
+        renderShot("en", true,  false, "assets/widget_en_expanded.png", false); // Expanded Mode (full reply text)
+        renderShot("en", false, false, "assets/widget_en_working.png", true);  // Working Mode (active execution timers)
 
         return 0;
     }

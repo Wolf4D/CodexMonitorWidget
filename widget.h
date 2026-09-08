@@ -24,6 +24,7 @@ public:
 
 public slots:
     void toggleCompactMode();
+    void setCompactMode(bool compact);
     void toggleMsgTextExpanded();
     void setMsgTextExpanded(bool expanded);
 

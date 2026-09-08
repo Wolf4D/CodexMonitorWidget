@@ -708,9 +708,9 @@ void CodexWidget::toggleAlwaysOnTop()
     show();
 }
 
-void CodexWidget::toggleCompactMode()
+void CodexWidget::setCompactMode(bool compact)
 {
-    m_isCompact = !m_isCompact;
+    m_isCompact = compact;
     if (m_isCompact) {
         m_messageCard->hide();
         m_cmdCard->hide();
@@ -722,9 +722,15 @@ void CodexWidget::toggleCompactMode()
         }
         if (m_compactBtn) m_compactBtn->setText("▲");
     }
+    resize(1, 1);
     adjustSize();
     ensureVisibleOnScreen();
     saveSettings();
+}
+
+void CodexWidget::toggleCompactMode()
+{
+    setCompactMode(!m_isCompact);
 }
 
 void CodexWidget::setMsgTextExpanded(bool expanded)
@@ -736,6 +742,7 @@ void CodexWidget::setMsgTextExpanded(bool expanded)
     if (m_msgToggleBtn) {
         m_msgToggleBtn->setText(m_isMsgTextExpanded ? "▼" : "▶");
     }
+    resize(1, 1);
     adjustSize();
     ensureVisibleOnScreen();
     saveSettings();
