@@ -9,7 +9,7 @@ on Windows.
 
 QUICK START:
 ------------
-1. Double-click "run.bat" or "codex_widget.exe" to launch the widget.
+1. Double-click "codex_widget.exe" to launch the widget.
 2. The widget will appear on your desktop and in the Windows System Tray.
 3. Start using Codex CLI or Codex Desktop as usual — CMW will monitor
    your session, rate limits, and command execution in real time!
