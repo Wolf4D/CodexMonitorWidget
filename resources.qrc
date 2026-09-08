@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>app.ico</file>
+        <file>app.png</file>
+        <file>translations/cmw_ru.qm</file>
+        <file>translations/cmw_en.qm</file>
+    </qresource>
+</RCC>
