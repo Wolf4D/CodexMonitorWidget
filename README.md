@@ -20,28 +20,52 @@
   <b>Developer:</b> Ivan Klenov &bull; <b>Studio:</b> Madness Studio
 </p>
 
+> [!IMPORTANT]
+> **🛡️ Privacy & Security Guarantee / Гарантия безопасности и приватности**:
+> - 🚫 **No Network Connection**: This tool never connects to the internet, remote servers, or telemetry endpoints. *(Инструмент не подключается к сети).*
+> - 🔑 **Zero API Keys & Tokens**: Does not ask for, read, or store OpenAI API keys, auth tokens, or passwords. *(Не запрашивает и не хранит токены).*
+> - 🔒 **No Authorization Needed**: Operates completely standalone without requiring any login or account credentials. *(Не требует авторизации).*
+> - 🛡️ **Zero Data Interception**: Never logs, intercepts, or transmits your code, prompts, chat history, or personal files. *(Не сохраняет и не перехватывает никаких данных).*
+> - 💻 **100% Local Passive Inspection**: It simply reads local process execution flags and monitors active Codex session state files locally on your PC. *(Исключительно локально мониторит состояние сессии Codex).*
+
 ---
 
-## 📸 Preview
+## 📸 Interface Preview (English)
+
+<p align="center">
+  <img src="assets/widget_en_expanded.png" alt="Codex Monitor Widget English Interface" width="340" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="assets/widget_en_working.png" alt="Codex Monitor Widget Live Working State" width="340" />
+</p>
+<p align="center">
+  <i>Left: Expanded Assistant Reply & Command HUD (Idle) &bull; Right: Live Execution Timers (Working)</i>
+</p>
+
+<details>
+<summary><b>🌍 Click to expand Multilingual & Mode Comparisons (EN / RU)</b></summary>
+
+<br />
 
 <table align="center">
   <tr>
-    <td align="center"><b>English (Compact)</b></td>
-    <td align="center"><b>Russian (Компактный)</b></td>
+    <td align="center"><b>English (Compact Mode)</b></td>
+    <td align="center"><b>Russian (Компактный режим)</b></td>
   </tr>
   <tr>
-    <td><img src="assets/widget_en.png" alt="English Compact Mode" width="340" /></td>
-    <td><img src="assets/widget_ru.png" alt="Russian Compact Mode" width="340" /></td>
+    <td><img src="assets/widget_en.png" alt="English Compact" width="320" /></td>
+    <td><img src="assets/widget_ru.png" alt="Russian Compact" width="320" /></td>
   </tr>
   <tr>
-    <td align="center"><b>English (Expanded Assistant)</b></td>
-    <td align="center"><b>Russian (Развернутый ответ)</b></td>
+    <td align="center"><b>English (Expanded Mode)</b></td>
+    <td align="center"><b>Russian (Развернутый режим)</b></td>
   </tr>
   <tr>
-    <td><img src="assets/widget_en_expanded.png" alt="English Expanded Mode" width="340" /></td>
-    <td><img src="assets/widget_ru_expanded.png" alt="Russian Expanded Mode" width="340" /></td>
+    <td><img src="assets/widget_en_expanded.png" alt="English Expanded" width="320" /></td>
+    <td><img src="assets/widget_ru_expanded.png" alt="Russian Expanded" width="320" /></td>
   </tr>
 </table>
+
+</details>
 
 ---
 
@@ -49,7 +73,7 @@
 
 - ⏱️ **Real-Time Command Execution Stopwatch**:
   - Ticking millisecond-accurate timer monitoring live terminal commands, tool executions, and file operations executed by Codex (`codex-command-runner`).
-  - Prominent high-contrast digital readout (`00:04.2`).
+  - Prominent high-contrast digital readout (`⏳ 4.7 s` / `✓ 1.8 s`).
   - Automatically records and locks final wall execution time upon completion.
 
 - ⏳ **Independent Assistant Replica / Turn Timer**:
@@ -57,12 +81,12 @@
   - Automatically resets whenever a new assistant thought, tool phase, or turn response arrives.
 
 - 📊 **Rate Limit & 5-Hour Quota Indicators**:
-  - Live percentage tracking of Codex's primary 5-hour rolling limit.
+  - Live percentage tracking of Codex's primary 5-hour rolling limit (`78% remaining`).
   - Adaptive 3-state progress bar:
     - 🟢 **Neon Cyan / Green** (`< 70%`) &mdash; Normal usage.
     - 🟡 **Amber Yellow** (`70% – 85%`) &mdash; Elevated quota.
     - 🔴 **Crimson Red** (`> 85%`) &mdash; Critical limit alert.
-  - Precise countdown to quota reset (`Reset in: Xh Ym`).
+  - Precise countdown to quota reset (`Reset in: ⏳ 3h 45m`).
   - Secondary weekly quota tooltip.
 
 - 🖥️ **Multi-Monitor & Mixed-DPI Resilience**:
@@ -72,6 +96,7 @@
 - 🌐 **Full Dual-Language Localization (EN / RU)**:
   - Built with **Qt Linguist** (`.ts` / `.qm`) compiled directly into binary application resources.
   - Automatically adopts your Windows system display language with instant fallback to English.
+  - Dynamic runtime language switcher via system tray menu.
 
 - 🎨 **Modern Cyber-HUD Aesthetics**:
   - Frameless glassmorphism design with deep obsidian background and crisp neon borders.
@@ -83,7 +108,7 @@
 - 🔔 **Windows System Tray Integration**:
   - Dynamic status tray icon (🟢 Working, 🟡 Idle, 🔴 Offline).
   - Live tooltip with current action, command status, and quota usage.
-  - Context menu for quick actions (Show/Hide, Pin, Force Refresh, Exit).
+  - Context menu for quick actions (Show/Hide, Pin, Force Refresh, Language Selection, Exit).
 
 - 🔒 **Absolute Privacy & Zero Data Footprint**:
   - Operates 100% locally on your machine.
@@ -145,6 +170,7 @@ codex_widget_cpp/
 │   ├── app_icon.png           # High-resolution application icon
 │   ├── widget_en.png          # English UI preview (compact)
 │   ├── widget_en_expanded.png # English UI preview (expanded)
+│   ├── widget_en_working.png  # English UI preview (live working state)
 │   ├── widget_ru.png          # Russian UI preview (compact)
 │   └── widget_ru_expanded.png # Russian UI preview (expanded)
 ├── translations/              # Qt Linguist translation sources
@@ -153,7 +179,7 @@ codex_widget_cpp/
 ├── codex_monitor.h/.cpp       # Engine: process scanner, session parser, quota tracker
 ├── widget.h/.cpp              # GUI: HUD layout, timers, DPI handling, tray integration
 ├── styles.h                   # Cyber-HUD QSS styling rules & color palette
-├── main.cpp                   # Application entry point & locale detection
+├── main.cpp                   # Application entry point, CLI flags & locale detection
 ├── app.rc / app.ico           # Windows executable resource definition & icon
 ├── resources.qrc              # Qt binary resource bundle (icons & compiled translations)
 ├── qt.conf                    # DPI awareness configuration
@@ -175,6 +201,7 @@ codex_widget_cpp/
 | **Minimize to Tray** | Click the **—** minimize button |
 | **Close Application** | Click the **✕** close button or choose Exit from tray |
 | **Copy Assistant Message** | Click the **📋 Copy** button inside the expanded card |
+| **Switch Language** | Right-click the system tray icon &rarr; **Language** |
 | **Tray Context Menu** | Right-click the system tray icon |
 
 ---

@@ -18,11 +18,14 @@ public:
     explicit CodexWidget(QWidget *parent = nullptr);
     ~CodexWidget() override;
     void setLanguage(const QString &langCode);
+    void pauseMonitor();
+    void applySnapshot(const CodexSnapshot &snapshot);
     QMenu *trayMenu() const { return m_trayMenu; }
 
 public slots:
     void toggleCompactMode();
     void toggleMsgTextExpanded();
+    void setMsgTextExpanded(bool expanded);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;

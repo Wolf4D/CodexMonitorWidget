@@ -41,6 +41,18 @@ CodexWidget::~CodexWidget()
     saveSettings();
 }
 
+void CodexWidget::pauseMonitor()
+{
+    if (m_monitor) {
+        m_monitor->stop();
+    }
+}
+
+void CodexWidget::applySnapshot(const CodexSnapshot &snapshot)
+{
+    onSnapshotUpdated(snapshot);
+}
+
 void CodexWidget::setupUi()
 {
     setWindowTitle(tr("Codex Monitor Widget (CMW)"));
@@ -715,9 +727,9 @@ void CodexWidget::toggleCompactMode()
     saveSettings();
 }
 
-void CodexWidget::toggleMsgTextExpanded()
+void CodexWidget::setMsgTextExpanded(bool expanded)
 {
-    m_isMsgTextExpanded = !m_isMsgTextExpanded;
+    m_isMsgTextExpanded = expanded;
     if (m_msgTextLabel) {
         m_msgTextLabel->setVisible(m_isMsgTextExpanded);
     }
@@ -727,6 +739,11 @@ void CodexWidget::toggleMsgTextExpanded()
     adjustSize();
     ensureVisibleOnScreen();
     saveSettings();
+}
+
+void CodexWidget::toggleMsgTextExpanded()
+{
+    setMsgTextExpanded(!m_isMsgTextExpanded);
 }
 
 QString CodexWidget::formatDuration(double elapsedSec, bool isRunning)
