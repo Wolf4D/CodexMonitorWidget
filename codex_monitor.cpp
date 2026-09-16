@@ -10,6 +10,9 @@
 #include <QDateTime>
 #include <QRegularExpression>
 #include <QMap>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <algorithm>
 #include <QDebug>
 
 #ifdef Q_OS_WIN
@@ -281,16 +284,27 @@ void CodexMonitor::parseSessionTail(const QString &filePath, CodexSnapshot &snap
                 if (rateLimits.value("primary").isObject()) {
                     QJsonObject primary = rateLimits.value("primary").toObject();
                     if (primary.contains("used_percent") && primary.contains("resets_at")) {
-                        snapshot.primaryUsedPercent = primary.value("used_percent").toDouble(0.0);
-                        snapshot.primaryResetsAt = primary.value("resets_at").toVariant().toLongLong();
-                        snapshot.primaryWindowMinutes = primary.value("window_minutes").toInt(300);
+                        int windowMin = primary.value("window_minutes").toInt(300);
+                        if (windowMin <= 300) {
+                            // Valid 5-hour rolling quota
+                            snapshot.primaryUsedPercent = primary.value("used_percent").toDouble(0.0);
+                            snapshot.primaryResetsAt = primary.value("resets_at").toVariant().toLongLong();
+                            snapshot.primaryWindowMinutes = windowMin;
 
-                        if (rateLimits.value("secondary").isObject()) {
-                            QJsonObject secondary = rateLimits.value("secondary").toObject();
-                            snapshot.secondaryUsedPercent = secondary.value("used_percent").toDouble(0.0);
-                            snapshot.secondaryResetsAt = secondary.value("resets_at").toVariant().toLongLong();
+                            if (rateLimits.value("secondary").isObject()) {
+                                QJsonObject secondary = rateLimits.value("secondary").toObject();
+                                snapshot.secondaryUsedPercent = secondary.value("used_percent").toDouble(0.0);
+                                snapshot.secondaryResetsAt = secondary.value("resets_at").toVariant().toLongLong();
+                            }
+                            foundLimits = true;
+                        } else {
+                            // Reserve / 7-day model quota (e.g. gpt-reserve with window_minutes: 10080)
+                            // Never overwrite primary 5h limit with weekly numbers!
+                            if (snapshot.secondaryResetsAt == 0) {
+                                snapshot.secondaryUsedPercent = primary.value("used_percent").toDouble(0.0);
+                                snapshot.secondaryResetsAt = primary.value("resets_at").toVariant().toLongLong();
+                            }
                         }
-                        foundLimits = true;
                     }
                 }
             }
@@ -454,6 +468,127 @@ void CodexMonitor::parseSessionTail(const QString &filePath, CodexSnapshot &snap
     }
 }
 
+bool CodexMonitor::readRateLimitsFromLogsDb(CodexSnapshot &snapshot)
+{
+    QString dbPath = QDir::homePath() + "/.codex/logs_2.sqlite";
+    if (!QFile::exists(dbPath)) {
+        return false;
+    }
+
+    const QString connName = "cmw_logs_reader";
+    bool success = false;
+    {
+        QSqlDatabase db;
+        if (QSqlDatabase::contains(connName)) {
+            db = QSqlDatabase::database(connName);
+        } else {
+            db = QSqlDatabase::addDatabase("QSQLITE", connName);
+            db.setConnectOptions("QSQLITE_OPEN_READONLY");
+            db.setDatabaseName(dbPath);
+        }
+
+        if (db.isOpen() || db.open()) {
+            QSqlQuery q(db);
+            q.setForwardOnly(true);
+            if (q.exec("SELECT feedback_log_body FROM logs WHERE feedback_log_body LIKE '%x-codex-primary-used-percent%' ORDER BY id DESC LIMIT 1")) {
+                if (q.next()) {
+                    QString body = q.value(0).toString();
+
+                    static QRegularExpression rePrimaryUsed(R"re("x-codex-primary-used-percent":\s*"([^"]+)")re");
+                    static QRegularExpression rePrimaryReset(R"re("x-codex-primary-reset-at":\s*"([^"]+)")re");
+                    static QRegularExpression rePrimaryWindow(R"re("x-codex-primary-window-minutes":\s*"([^"]+)")re");
+                    static QRegularExpression reSecondaryUsed(R"re("x-codex-secondary-used-percent":\s*"([^"]+)")re");
+                    static QRegularExpression reSecondaryReset(R"re("x-codex-secondary-reset-at":\s*"([^"]+)")re");
+
+                    auto mPU = rePrimaryUsed.match(body);
+                    auto mPR = rePrimaryReset.match(body);
+                    auto mPW = rePrimaryWindow.match(body);
+                    auto mSU = reSecondaryUsed.match(body);
+                    auto mSR = reSecondaryReset.match(body);
+
+                    if (mPU.hasMatch() && mPR.hasMatch()) {
+                        snapshot.primaryUsedPercent = mPU.captured(1).toDouble();
+                        snapshot.primaryResetsAt = mPR.captured(1).toLongLong();
+                        snapshot.primaryWindowMinutes = mPW.hasMatch() ? mPW.captured(1).toInt() : 300;
+
+                        if (mSU.hasMatch() && mSR.hasMatch()) {
+                            snapshot.secondaryUsedPercent = mSU.captured(1).toDouble();
+                            snapshot.secondaryResetsAt = mSR.captured(1).toLongLong();
+                        }
+                        success = true;
+                    }
+                }
+            }
+        }
+    }
+    return success;
+}
+
+bool CodexMonitor::findRecentPrimaryRateLimit(CodexSnapshot &snapshot)
+{
+    QString sessionsRoot = QDir::homePath() + "/.codex/sessions";
+    QDir rootDir(sessionsRoot);
+    if (!rootDir.exists()) {
+        return false;
+    }
+
+    QFileInfoList sessionFiles;
+    QDirIterator it(sessionsRoot, QStringList() << "rollout-*.jsonl", QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        sessionFiles.append(it.fileInfo());
+    }
+
+    std::sort(sessionFiles.begin(), sessionFiles.end(), [](const QFileInfo &a, const QFileInfo &b) {
+        return a.lastModified() > b.lastModified();
+    });
+
+    int checked = 0;
+    for (const auto &fi : sessionFiles) {
+        if (++checked > 10) break;
+        if (fi.absoluteFilePath() == m_cachedSessionFile) {
+            continue;
+        }
+
+        QFile file(fi.absoluteFilePath());
+        if (!file.open(QIODevice::ReadOnly)) continue;
+        qint64 sz = file.size();
+        qint64 chunk = qMin<qint64>(sz, 2097152LL);
+        file.seek(sz - chunk);
+        QByteArray data = file.readAll();
+        file.close();
+
+        QList<QByteArray> lines = data.split('\n');
+        for (int i = lines.size() - 1; i >= 0; --i) {
+            const QByteArray &line = lines[i];
+            if (!line.contains("\"rate_limits\"")) continue;
+
+            QJsonDocument doc = QJsonDocument::fromJson(line.trimmed());
+            if (!doc.isObject()) continue;
+            QJsonObject root = doc.object();
+            QJsonObject payload = root.value("payload").toObject();
+            if (payload.contains("rate_limits")) {
+                QJsonObject rl = payload.value("rate_limits").toObject();
+                QJsonObject primary = rl.value("primary").toObject();
+                int win = primary.value("window_minutes").toInt(300);
+                if (win <= 300 && primary.contains("used_percent") && primary.contains("resets_at")) {
+                    snapshot.primaryUsedPercent = primary.value("used_percent").toDouble(0.0);
+                    snapshot.primaryResetsAt = primary.value("resets_at").toVariant().toLongLong();
+                    snapshot.primaryWindowMinutes = win;
+
+                    if (rl.value("secondary").isObject()) {
+                        QJsonObject secondary = rl.value("secondary").toObject();
+                        snapshot.secondaryUsedPercent = secondary.value("used_percent").toDouble(0.0);
+                        snapshot.secondaryResetsAt = secondary.value("resets_at").toVariant().toLongLong();
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 CodexSnapshot CodexMonitor::pollOnce()
 {
     m_pollCounter++;
@@ -474,7 +609,17 @@ CodexSnapshot CodexMonitor::pollOnce()
         return snapshot;
     }
 
-    // 2. Locate active session file (cached, refreshed every ~2.5 seconds or if invalid)
+    // 2. Query account-wide rate limits from logs_2.sqlite
+    // Checked every 10 ticks (~2.0s), or on start, or if primary limit not yet initialized
+    if (m_pollCounter % 10 == 0 || snapshot.primaryResetsAt == 0) {
+        if (!readRateLimitsFromLogsDb(snapshot)) {
+            if (snapshot.primaryResetsAt == 0) {
+                findRecentPrimaryRateLimit(snapshot);
+            }
+        }
+    }
+
+    // 3. Locate active session file (cached, refreshed every ~2.5 seconds or if invalid)
     if (m_cachedSessionFile.isEmpty() || !QFile::exists(m_cachedSessionFile) || (m_pollCounter % 12 == 0)) {
         m_cachedSessionFile = findLatestSessionFile();
     }

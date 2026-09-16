@@ -24,8 +24,11 @@ int main(int argc, char *argv[])
                                           snap.state == CodexState::Idle ? "IDLE (YELLOW)" : "STOPPED (RED)") << std::endl;
     std::cout << "State Description:   " << snap.stateDescription.toStdString() << std::endl;
     std::cout << "Codex Process:       " << (snap.isProcessRunning ? "RUNNING" : "NOT RUNNING") << std::endl;
-    std::cout << "5-Hour Limit Used:   " << snap.primaryUsedPercent << " %" << std::endl;
-    std::cout << "Limit Resets At:     " << snap.primaryResetsAt << " (Unix timestamp)" << std::endl;
+    std::cout << "5-Hour Limit Used:   " << snap.primaryUsedPercent << " % (Remaining: " << (100.0 - snap.primaryUsedPercent) << " %)" << std::endl;
+    std::cout << "5-Hour Window:       " << snap.primaryWindowMinutes << " min" << std::endl;
+    std::cout << "5-Hour Resets At:    " << snap.primaryResetsAt << " (Unix timestamp)" << std::endl;
+    std::cout << "7-Day Limit Used:    " << snap.secondaryUsedPercent << " % (Remaining: " << (100.0 - snap.secondaryUsedPercent) << " %)" << std::endl;
+    std::cout << "7-Day Resets At:     " << snap.secondaryResetsAt << " (Unix timestamp)" << std::endl;
     
     // Message preview
     std::cout << "Last Message Author: " << snap.lastMessageAuthor.toStdString() << std::endl;

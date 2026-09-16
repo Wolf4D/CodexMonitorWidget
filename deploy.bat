@@ -23,7 +23,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "Copy-Item LICENSE deploy\;" ^
     "Copy-Item deploy_readme.txt deploy\README.txt;" ^
     "Get-ChildItem release -Filter *.dll | ForEach-Object { Copy-Item $_.FullName deploy\ };" ^
-    "foreach ($folder in @('platforms', 'styles', 'iconengines', 'imageformats')) { if (Test-Path ('release\' + $folder)) { Copy-Item ('release\' + $folder) ('deploy\' + $folder) -Recurse -Force } }"
+    "foreach ($folder in @('platforms', 'styles', 'iconengines', 'imageformats', 'sqldrivers')) { if (Test-Path ('release\' + $folder)) { Copy-Item ('release\' + $folder) ('deploy\' + $folder) -Recurse -Force } }"
 
 echo [3/3] Creating distribution ZIP archive...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^

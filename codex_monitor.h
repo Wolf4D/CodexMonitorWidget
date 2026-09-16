@@ -76,11 +76,14 @@ private:
     QString findLatestSessionFile();
     void parseSessionTail(const QString &filePath, CodexSnapshot &snapshot);
     QString extractCommandText(const QString &input);
+    bool readRateLimitsFromLogsDb(CodexSnapshot &snapshot);
+    bool findRecentPrimaryRateLimit(CodexSnapshot &snapshot);
 
     QTimer m_timer;
     CodexSnapshot m_lastSnapshot;
     QString m_cachedSessionFile;
     qint64 m_lastKnownSize = 0;
+    qint64 m_lastDbCheckTime = 0;
     int m_pollCounter = 0;
     bool m_lastCodexRunning = false;
     bool m_lastRunnerRunning = false;

@@ -460,8 +460,16 @@ void CodexWidget::onSnapshotUpdated(const CodexSnapshot &snap)
     updateTrayIcon(snap.state);
 
     // 2. Limit Section
+    qint64 nowSec = QDateTime::currentDateTime().toSecsSinceEpoch();
     double primaryRemaining = qMax(0.0, 100.0 - snap.primaryUsedPercent);
     double secondaryRemaining = qMax(0.0, 100.0 - snap.secondaryUsedPercent);
+
+    if (snap.primaryResetsAt > 0 && nowSec >= snap.primaryResetsAt) {
+        primaryRemaining = 100.0;
+    }
+    if (snap.secondaryResetsAt > 0 && nowSec >= snap.secondaryResetsAt) {
+        secondaryRemaining = 100.0;
+    }
 
     int displayPercent = m_showRemainingLimit ?
         qBound(0, static_cast<int>(qRound(primaryRemaining)), 100) :
