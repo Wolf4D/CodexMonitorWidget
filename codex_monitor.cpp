@@ -155,11 +155,21 @@ QString CodexMonitor::extractCommandText(const QString &input)
     return firstLine.left(140);
 }
 
-void CodexMonitor::parseSessionTail(const QString &filePath, CodexSnapshot &snapshot)
+QString CodexMonitor::extractThreadIdFromPath(const QString &path)
+{
+    static QRegularExpression reUuid(R"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})");
+    QRegularExpressionMatch m = reUuid.match(path);
+    if (m.hasMatch()) {
+        return m.captured(0);
+    }
+    return QString();
+}
+
+bool CodexMonitor::parseSessionTail(const QString &filePath, CodexSnapshot &snapshot)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
-        return;
+        return false;
     }
 
     qint64 fileSize = file.size();
@@ -169,7 +179,7 @@ void CodexMonitor::parseSessionTail(const QString &filePath, CodexSnapshot &snap
     qint64 readChunk = qMin<qint64>(fileSize, 8388608LL);
     if (readChunk <= 0) {
         file.close();
-        return;
+        return false;
     }
 
     file.seek(fileSize - readChunk);
@@ -290,6 +300,7 @@ void CodexMonitor::parseSessionTail(const QString &filePath, CodexSnapshot &snap
                             snapshot.primaryUsedPercent = primary.value("used_percent").toDouble(0.0);
                             snapshot.primaryResetsAt = primary.value("resets_at").toVariant().toLongLong();
                             snapshot.primaryWindowMinutes = windowMin;
+                            snapshot.primaryLimitTimestamp = eventTime.isValid() ? eventTime.toSecsSinceEpoch() : QDateTime::currentDateTime().toSecsSinceEpoch();
 
                             if (rateLimits.value("secondary").isObject()) {
                                 QJsonObject secondary = rateLimits.value("secondary").toObject();
@@ -466,9 +477,11 @@ void CodexMonitor::parseSessionTail(const QString &filePath, CodexSnapshot &snap
             snapshot.turnDurationMs = diffMs;
         }
     }
+
+    return foundLimits;
 }
 
-bool CodexMonitor::readRateLimitsFromLogsDb(CodexSnapshot &snapshot)
+bool CodexMonitor::readRateLimitsFromLogsDb(CodexSnapshot &snapshot, const QString &threadId)
 {
     QString dbPath = QDir::homePath() + "/.codex/logs_2.sqlite";
     if (!QFile::exists(dbPath)) {
@@ -490,33 +503,68 @@ bool CodexMonitor::readRateLimitsFromLogsDb(CodexSnapshot &snapshot)
         if (db.isOpen() || db.open()) {
             QSqlQuery q(db);
             q.setForwardOnly(true);
-            if (q.exec("SELECT feedback_log_body FROM logs WHERE feedback_log_body LIKE '%x-codex-primary-used-percent%' ORDER BY id DESC LIMIT 1")) {
-                if (q.next()) {
-                    QString body = q.value(0).toString();
 
-                    static QRegularExpression rePrimaryUsed(R"re("x-codex-primary-used-percent":\s*"([^"]+)")re");
-                    static QRegularExpression rePrimaryReset(R"re("x-codex-primary-reset-at":\s*"([^"]+)")re");
-                    static QRegularExpression rePrimaryWindow(R"re("x-codex-primary-window-minutes":\s*"([^"]+)")re");
-                    static QRegularExpression reSecondaryUsed(R"re("x-codex-secondary-used-percent":\s*"([^"]+)")re");
-                    static QRegularExpression reSecondaryReset(R"re("x-codex-secondary-reset-at":\s*"([^"]+)")re");
+            bool hasRow = false;
+            // 1. Try finding logs specifically for the active thread
+            if (!threadId.isEmpty()) {
+                q.prepare("SELECT ts, feedback_log_body FROM logs WHERE feedback_log_body LIKE '%x-codex-primary-used-percent%' AND feedback_log_body LIKE :tId ORDER BY id DESC LIMIT 1");
+                q.bindValue(":tId", QString("%%%1%%").arg(threadId));
+                if (q.exec() && q.next()) {
+                    hasRow = true;
+                }
+            }
 
-                    auto mPU = rePrimaryUsed.match(body);
-                    auto mPR = rePrimaryReset.match(body);
-                    auto mPW = rePrimaryWindow.match(body);
-                    auto mSU = reSecondaryUsed.match(body);
-                    auto mSR = reSecondaryReset.match(body);
+            // 2. Fallback to latest global response header
+            if (!hasRow) {
+                if (q.exec("SELECT ts, feedback_log_body FROM logs WHERE feedback_log_body LIKE '%x-codex-primary-used-percent%' ORDER BY id DESC LIMIT 1") && q.next()) {
+                    hasRow = true;
+                }
+            }
 
-                    if (mPU.hasMatch() && mPR.hasMatch()) {
-                        snapshot.primaryUsedPercent = mPU.captured(1).toDouble();
-                        snapshot.primaryResetsAt = mPR.captured(1).toLongLong();
-                        snapshot.primaryWindowMinutes = mPW.hasMatch() ? mPW.captured(1).toInt() : 300;
+            if (hasRow) {
+                qint64 rowTs = q.value(0).toLongLong();
+                QString body = q.value(1).toString();
 
-                        if (mSU.hasMatch() && mSR.hasMatch()) {
-                            snapshot.secondaryUsedPercent = mSU.captured(1).toDouble();
-                            snapshot.secondaryResetsAt = mSR.captured(1).toLongLong();
-                        }
-                        success = true;
+                // If DB row is older than what our snapshot already recorded, ignore it
+                if (snapshot.primaryLimitTimestamp > 0 && rowTs < snapshot.primaryLimitTimestamp) {
+                    return false;
+                }
+
+                static QRegularExpression rePrimaryUsed(R"re("x-codex-primary-used-percent":\s*"([^"]+)")re");
+                static QRegularExpression rePrimaryReset(R"re("x-codex-primary-reset-at":\s*"([^"]+)")re");
+                static QRegularExpression rePrimaryWindow(R"re("x-codex-primary-window-minutes":\s*"([^"]+)")re");
+                static QRegularExpression reSecondaryUsed(R"re("x-codex-secondary-used-percent":\s*"([^"]+)")re");
+                static QRegularExpression reSecondaryReset(R"re("x-codex-secondary-reset-at":\s*"([^"]+)")re");
+
+                auto mPU = rePrimaryUsed.match(body);
+                auto mPR = rePrimaryReset.match(body);
+                auto mPW = rePrimaryWindow.match(body);
+                auto mSU = reSecondaryUsed.match(body);
+                auto mSR = reSecondaryReset.match(body);
+
+                if (mPU.hasMatch() && mPR.hasMatch()) {
+                    qint64 pReset = mPR.captured(1).toLongLong();
+                    qint64 nowSec = QDateTime::currentDateTime().toSecsSinceEpoch();
+
+                    // If quota window has already elapsed, full quota is restored
+                    if (pReset > 0 && nowSec >= pReset) {
+                        snapshot.primaryUsedPercent = 0.0;
+                        snapshot.primaryResetsAt = 0;
+                        snapshot.primaryWindowMinutes = 300;
+                        snapshot.primaryLimitTimestamp = rowTs;
+                        return true;
                     }
+
+                    snapshot.primaryUsedPercent = mPU.captured(1).toDouble();
+                    snapshot.primaryResetsAt = pReset;
+                    snapshot.primaryWindowMinutes = mPW.hasMatch() ? mPW.captured(1).toInt() : 300;
+                    snapshot.primaryLimitTimestamp = rowTs;
+
+                    if (mSU.hasMatch() && mSR.hasMatch()) {
+                        snapshot.secondaryUsedPercent = mSU.captured(1).toDouble();
+                        snapshot.secondaryResetsAt = mSR.captured(1).toLongLong();
+                    }
+                    success = true;
                 }
             }
         }
@@ -609,22 +657,13 @@ CodexSnapshot CodexMonitor::pollOnce()
         return snapshot;
     }
 
-    // 2. Query account-wide rate limits from logs_2.sqlite
-    // Checked every 10 ticks (~2.0s), or on start, or if primary limit not yet initialized
-    if (m_pollCounter % 10 == 0 || snapshot.primaryResetsAt == 0) {
-        if (!readRateLimitsFromLogsDb(snapshot)) {
-            if (snapshot.primaryResetsAt == 0) {
-                findRecentPrimaryRateLimit(snapshot);
-            }
-        }
-    }
-
-    // 3. Locate active session file (cached, refreshed every ~2.5 seconds or if invalid)
+    // 2. Locate active session file (cached, refreshed every ~2.5 seconds or if invalid)
     if (m_cachedSessionFile.isEmpty() || !QFile::exists(m_cachedSessionFile) || (m_pollCounter % 12 == 0)) {
         m_cachedSessionFile = findLatestSessionFile();
     }
     snapshot.activeSessionPath = m_cachedSessionFile;
 
+    bool foundSessionLimits = false;
     if (!m_cachedSessionFile.isEmpty()) {
         QFile file(m_cachedSessionFile);
         if (file.open(QIODevice::ReadOnly)) {
@@ -636,13 +675,29 @@ CodexSnapshot CodexMonitor::pollOnce()
 
             // Parse immediately on byte changes OR periodically every 3 ticks (600ms)
             if (currentSize != m_lastKnownSize || (m_pollCounter % 3 == 0)) {
-                parseSessionTail(m_cachedSessionFile, snapshot);
+                foundSessionLimits = parseSessionTail(m_cachedSessionFile, snapshot);
                 m_lastKnownSize = currentSize;
+            } else {
+                // If not re-parsed this tick, preserve known 5h limit status
+                foundSessionLimits = (snapshot.primaryWindowMinutes <= 300 && snapshot.primaryResetsAt > 0);
             }
         }
     } else {
         snapshot.state = CodexState::Idle;
         snapshot.stateDescription = tr("Ready (no sessions)");
+    }
+
+    // 3. Fallback: Query account-wide rate limits from logs_2.sqlite or previous sessions
+    // ONLY if active session does NOT provide a 5-hour limit (e.g. gpt-reserve sessions or initial launch)
+    if (!foundSessionLimits && (snapshot.primaryResetsAt == 0 || snapshot.primaryWindowMinutes > 300)) {
+        if (m_pollCounter % 10 == 0 || snapshot.primaryResetsAt == 0) {
+            QString threadId = extractThreadIdFromPath(m_cachedSessionFile);
+            if (!readRateLimitsFromLogsDb(snapshot, threadId)) {
+                if (snapshot.primaryResetsAt == 0) {
+                    findRecentPrimaryRateLimit(snapshot);
+                }
+            }
+        }
     }
 
     m_lastSnapshot = snapshot;

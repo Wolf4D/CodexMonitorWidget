@@ -28,6 +28,7 @@ struct CodexSnapshot {
     double primaryUsedPercent = 0.0;
     qint64 primaryResetsAt = 0; // Unix timestamp (seconds)
     int primaryWindowMinutes = 300;
+    qint64 primaryLimitTimestamp = 0; // Unix timestamp of when limit was recorded
     
     // Secondary limit (weekly)
     double secondaryUsedPercent = 0.0;
@@ -74,9 +75,10 @@ private slots:
 private:
     void checkProcesses(bool &outCodexRunning, bool &outRunnerRunning);
     QString findLatestSessionFile();
-    void parseSessionTail(const QString &filePath, CodexSnapshot &snapshot);
+    bool parseSessionTail(const QString &filePath, CodexSnapshot &snapshot);
     QString extractCommandText(const QString &input);
-    bool readRateLimitsFromLogsDb(CodexSnapshot &snapshot);
+    QString extractThreadIdFromPath(const QString &path);
+    bool readRateLimitsFromLogsDb(CodexSnapshot &snapshot, const QString &threadId = QString());
     bool findRecentPrimaryRateLimit(CodexSnapshot &snapshot);
 
     QTimer m_timer;
