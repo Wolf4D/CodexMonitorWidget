@@ -525,8 +525,8 @@ bool CodexMonitor::readRateLimitsFromLogsDb(CodexSnapshot &snapshot, const QStri
                 qint64 rowTs = q.value(0).toLongLong();
                 QString body = q.value(1).toString();
 
-                // If DB row is older than what our snapshot already recorded, ignore it
-                if (snapshot.primaryLimitTimestamp > 0 && rowTs < snapshot.primaryLimitTimestamp) {
+                // If DB row is noticeably older than what our snapshot already recorded, ignore it
+                if (snapshot.primaryLimitTimestamp > 0 && rowTs < (snapshot.primaryLimitTimestamp - 5)) {
                     return false;
                 }
 
@@ -659,7 +659,12 @@ CodexSnapshot CodexMonitor::pollOnce()
 
     // 2. Locate active session file (cached, refreshed every ~2.5 seconds or if invalid)
     if (m_cachedSessionFile.isEmpty() || !QFile::exists(m_cachedSessionFile) || (m_pollCounter % 12 == 0)) {
-        m_cachedSessionFile = findLatestSessionFile();
+        QString latest = findLatestSessionFile();
+        if (latest != m_cachedSessionFile) {
+            m_cachedSessionFile = latest;
+            m_lastKnownSize = 0;
+            snapshot.primaryLimitTimestamp = 0;
+        }
     }
     snapshot.activeSessionPath = m_cachedSessionFile;
 
@@ -677,9 +682,6 @@ CodexSnapshot CodexMonitor::pollOnce()
             if (currentSize != m_lastKnownSize || (m_pollCounter % 3 == 0)) {
                 foundSessionLimits = parseSessionTail(m_cachedSessionFile, snapshot);
                 m_lastKnownSize = currentSize;
-            } else {
-                // If not re-parsed this tick, preserve known 5h limit status
-                foundSessionLimits = (snapshot.primaryWindowMinutes <= 300 && snapshot.primaryResetsAt > 0);
             }
         }
     } else {
@@ -687,15 +689,14 @@ CodexSnapshot CodexMonitor::pollOnce()
         snapshot.stateDescription = tr("Ready (no sessions)");
     }
 
-    // 3. Fallback: Query account-wide rate limits from logs_2.sqlite or previous sessions
-    // ONLY if active session does NOT provide a 5-hour limit (e.g. gpt-reserve sessions or initial launch)
-    if (!foundSessionLimits && (snapshot.primaryResetsAt == 0 || snapshot.primaryWindowMinutes > 300)) {
-        if (m_pollCounter % 10 == 0 || snapshot.primaryResetsAt == 0) {
-            QString threadId = extractThreadIdFromPath(m_cachedSessionFile);
-            if (!readRateLimitsFromLogsDb(snapshot, threadId)) {
-                if (snapshot.primaryResetsAt == 0) {
-                    findRecentPrimaryRateLimit(snapshot);
-                }
+    // 3. Query account-wide rate limits from logs_2.sqlite:
+    // Polled every 5 ticks (~1.0s), or on start, or if active session does not provide a 5-hour limit.
+    // Keeps quota live and accurate for both normal and gpt-reserve sessions.
+    if (!foundSessionLimits || (m_pollCounter % 5 == 0) || snapshot.primaryResetsAt == 0) {
+        QString threadId = extractThreadIdFromPath(m_cachedSessionFile);
+        if (!readRateLimitsFromLogsDb(snapshot, threadId)) {
+            if (snapshot.primaryResetsAt == 0) {
+                findRecentPrimaryRateLimit(snapshot);
             }
         }
     }

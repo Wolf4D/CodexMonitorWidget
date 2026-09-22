@@ -1,4 +1,5 @@
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QDebug>
 #include <iostream>
 #include "codex_monitor.h"
@@ -15,8 +16,19 @@ int main(int argc, char *argv[])
     QCoreApplication app(argc, argv);
 
     CodexMonitor monitor;
+    QElapsedTimer timer;
+    timer.start();
     CodexSnapshot snap = monitor.pollOnce();
+    qint64 elapsed1 = timer.elapsed();
 
+    timer.restart();
+    for (int k = 0; k < 10; ++k) {
+        monitor.pollOnce();
+    }
+    qint64 elapsed10 = timer.elapsed();
+
+    std::cout << "pollOnce first call: " << elapsed1 << " ms" << std::endl;
+    std::cout << "pollOnce 10 calls:   " << elapsed10 << " ms (avg " << (elapsed10 / 10.0) << " ms)" << std::endl;
     std::cout << "========================================" << std::endl;
     std::cout << "       CODEX MONITOR VERIFICATION       " << std::endl;
     std::cout << "========================================" << std::endl;
@@ -43,6 +55,7 @@ int main(int argc, char *argv[])
     std::cout << "Command Status:      " << snap.lastCommand.statusText.toStdString() << std::endl;
     std::cout << "Command Wall Time:   " << snap.lastCommand.wallTime.toStdString() << std::endl;
     std::cout << "Command Time:        " << snap.lastCommand.timestamp.toString("yyyy-MM-dd HH:mm:ss").toStdString() << std::endl;
+    std::cout << "Active File:         " << snap.activeSessionPath.toStdString() << std::endl;
     std::cout << "Command Text:        " << snap.lastCommand.command.toStdString() << std::endl;
     std::cout << "========================================" << std::endl;
 

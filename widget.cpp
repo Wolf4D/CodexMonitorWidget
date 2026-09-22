@@ -543,7 +543,7 @@ void CodexWidget::onSnapshotUpdated(const CodexSnapshot &snap)
         m_msgAuthor->setText(authorIcon);
 
         if (snap.lastMessageTime.isValid()) {
-            m_msgTime->setText(snap.lastMessageTime.toString("HH:mm:ss"));
+            m_msgTime->setText(snap.lastMessageTime.toLocalTime().toString("HH:mm:ss"));
         } else {
             m_msgTime->setText("");
         }
@@ -624,7 +624,7 @@ void CodexWidget::onSnapshotUpdated(const CodexSnapshot &snap)
         }
 
         if (cmd.timestamp.isValid()) {
-            m_cmdTime->setText(cmd.timestamp.toString("HH:mm"));
+            m_cmdTime->setText(cmd.timestamp.toLocalTime().toString("HH:mm"));
         } else {
             m_cmdTime->setText("");
         }
