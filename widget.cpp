@@ -475,48 +475,59 @@ void CodexWidget::onSnapshotUpdated(const CodexSnapshot &snap)
         qBound(0, static_cast<int>(qRound(primaryRemaining)), 100) :
         qBound(0, static_cast<int>(qRound(snap.primaryUsedPercent)), 100);
 
-    m_limitPercent->setText(m_showRemainingLimit ?
-        QString("%1%").arg(displayPercent) :
-        tr("used %1%").arg(displayPercent));
-    m_limitBar->setValue(displayPercent);
-
-    if (m_showRemainingLimit) {
-        QString chunkStyle;
-        if (displayPercent <= 15) {
-            chunkStyle = "QProgressBar#limitBar::chunk { background: #ef4444; border-radius: 2px; }";
-            m_limitPercent->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: 800;");
-        } else if (displayPercent <= 30) {
-            chunkStyle = "QProgressBar#limitBar::chunk { background: #f59e0b; border-radius: 2px; }";
-            m_limitPercent->setStyleSheet("color: #f59e0b; font-size: 14px; font-weight: 800;");
-        } else {
-            chunkStyle = "QProgressBar#limitBar::chunk { background: #10b981; border-radius: 2px; }";
-            m_limitPercent->setStyleSheet("color: #10b981; font-size: 14px; font-weight: 800;");
-        }
-        m_limitBar->setStyleSheet(chunkStyle);
-    } else {
-        QString chunkStyle;
-        if (displayPercent >= 85) {
-            chunkStyle = "QProgressBar#limitBar::chunk { background: #ef4444; border-radius: 2px; }";
-            m_limitPercent->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: 800;");
-        } else if (displayPercent >= 70) {
-            chunkStyle = "QProgressBar#limitBar::chunk { background: #f59e0b; border-radius: 2px; }";
-            m_limitPercent->setStyleSheet("color: #f59e0b; font-size: 14px; font-weight: 800;");
-        } else {
-            chunkStyle = "QProgressBar#limitBar::chunk { background: #10b981; border-radius: 2px; }";
-            m_limitPercent->setStyleSheet("color: #ffffff; font-size: 14px; font-weight: 800;");
-        }
-        m_limitBar->setStyleSheet(chunkStyle);
-    }
-
-    // Countdown and 7-day limit
     QString countdownStr = formatTimeRemaining(snap.primaryResetsAt);
-    m_resetCountdown->setText(countdownStr);
 
-    if (snap.secondaryResetsAt > 0) {
-        int secRemaining = qBound(0, static_cast<int>(qRound(secondaryRemaining)), 100);
-        m_secondaryLimitLabel->setText(tr("7d: %1%").arg(secRemaining));
-    } else {
+    if (snap.primaryResetsAt == 0) {
+        m_limitPercent->setText("--%");
+        m_limitBar->setValue(100);
+        m_limitBar->setStyleSheet("QProgressBar#limitBar::chunk { background: #38bdf8; border-radius: 2px; }");
+        m_limitPercent->setStyleSheet("color: #94a3b8; font-size: 14px; font-weight: 800;");
+        m_resetCountdown->setText("--");
         m_secondaryLimitLabel->setText("");
+    } else {
+        m_limitPercent->setText(m_showRemainingLimit ?
+            QString("%1%").arg(displayPercent) :
+            tr("used %1%").arg(displayPercent));
+        m_limitBar->setValue(displayPercent);
+
+        if (m_showRemainingLimit) {
+            QString chunkStyle;
+            if (displayPercent <= 15) {
+                chunkStyle = "QProgressBar#limitBar::chunk { background: #ef4444; border-radius: 2px; }";
+                m_limitPercent->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: 800;");
+            } else if (displayPercent <= 30) {
+                chunkStyle = "QProgressBar#limitBar::chunk { background: #f59e0b; border-radius: 2px; }";
+                m_limitPercent->setStyleSheet("color: #f59e0b; font-size: 14px; font-weight: 800;");
+            } else {
+                chunkStyle = "QProgressBar#limitBar::chunk { background: #10b981; border-radius: 2px; }";
+                m_limitPercent->setStyleSheet("color: #10b981; font-size: 14px; font-weight: 800;");
+            }
+            m_limitBar->setStyleSheet(chunkStyle);
+        } else {
+            QString chunkStyle;
+            if (displayPercent >= 85) {
+                chunkStyle = "QProgressBar#limitBar::chunk { background: #ef4444; border-radius: 2px; }";
+                m_limitPercent->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: 800;");
+            } else if (displayPercent >= 70) {
+                chunkStyle = "QProgressBar#limitBar::chunk { background: #f59e0b; border-radius: 2px; }";
+                m_limitPercent->setStyleSheet("color: #f59e0b; font-size: 14px; font-weight: 800;");
+            } else {
+                chunkStyle = "QProgressBar#limitBar::chunk { background: #10b981; border-radius: 2px; }";
+                m_limitPercent->setStyleSheet("color: #ffffff; font-size: 14px; font-weight: 800;");
+            }
+            m_limitBar->setStyleSheet(chunkStyle);
+        }
+
+        // Countdown and 7-day limit
+        QString countdownStr = formatTimeRemaining(snap.primaryResetsAt);
+        m_resetCountdown->setText(countdownStr);
+
+        if (snap.secondaryResetsAt > 0) {
+            int secRemaining = qBound(0, static_cast<int>(qRound(secondaryRemaining)), 100);
+            m_secondaryLimitLabel->setText(tr("7d: %1%").arg(secRemaining));
+        } else {
+            m_secondaryLimitLabel->setText("");
+        }
     }
 
     QString limitTooltip = tr(

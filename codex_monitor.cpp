@@ -643,6 +643,22 @@ CodexSnapshot CodexMonitor::pollOnce()
     // Start with last snapshot to preserve values when parsing partial tails
     CodexSnapshot snapshot = m_lastSnapshot;
 
+    // Detect profile switch: ~/.codex/auth.json modified
+    QString authPath = QDir::homePath() + "/.codex/auth.json";
+    QFileInfo authFi(authPath);
+    if (authFi.exists()) {
+        qint64 authMtime = authFi.lastModified().toSecsSinceEpoch();
+        if (m_lastAuthMtime > 0 && authMtime > m_lastAuthMtime) {
+            // Profile switch detected! Clear stale rate limits from previous profile
+            snapshot.primaryUsedPercent = 0.0;
+            snapshot.primaryResetsAt = 0;
+            snapshot.primaryLimitTimestamp = authMtime;
+            snapshot.secondaryUsedPercent = 0.0;
+            snapshot.secondaryResetsAt = 0;
+        }
+        m_lastAuthMtime = authMtime;
+    }
+
     // 1. Process check every 2 ticks (~400ms) to ensure instant detection of process start/stop
     if (m_pollCounter % 2 == 0 || m_pollCounter == 1) {
         checkProcesses(m_lastCodexRunning, m_lastRunnerRunning);

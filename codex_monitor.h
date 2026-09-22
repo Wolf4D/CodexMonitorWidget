@@ -87,6 +87,7 @@ private:
     qint64 m_lastKnownSize = 0;
     qint64 m_lastDbCheckTime = 0;
     int m_pollCounter = 0;
+    qint64 m_lastAuthMtime = 0;
     bool m_lastCodexRunning = false;
     bool m_lastRunnerRunning = false;
 };
