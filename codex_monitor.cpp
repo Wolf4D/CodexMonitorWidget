@@ -291,26 +291,30 @@ bool CodexMonitor::parseSessionTail(const QString &filePath, CodexSnapshot &snap
         if (!foundLimits) {
             if (type == "event_msg" && payloadType == "token_count" && payload.contains("rate_limits")) {
                 QJsonObject rateLimits = payload.value("rate_limits").toObject();
+                foundLimits = true; // Stop searching older historical turns in this file!
+
                 if (rateLimits.value("primary").isObject()) {
                     QJsonObject primary = rateLimits.value("primary").toObject();
                     if (primary.contains("used_percent") && primary.contains("resets_at")) {
                         int windowMin = primary.value("window_minutes").toInt(300);
                         if (windowMin <= 300) {
-                            // Valid 5-hour rolling quota
-                            snapshot.primaryUsedPercent = primary.value("used_percent").toDouble(0.0);
-                            snapshot.primaryResetsAt = primary.value("resets_at").toVariant().toLongLong();
-                            snapshot.primaryWindowMinutes = windowMin;
-                            snapshot.primaryLimitTimestamp = eventTime.isValid() ? eventTime.toSecsSinceEpoch() : QDateTime::currentDateTime().toSecsSinceEpoch();
+                            qint64 eventSec = eventTime.isValid() ? eventTime.toSecsSinceEpoch() : QDateTime::currentDateTime().toSecsSinceEpoch();
+                            if (eventSec >= (snapshot.primaryLimitTimestamp - 5)) {
+                                // Valid 5-hour rolling quota
+                                snapshot.primaryUsedPercent = primary.value("used_percent").toDouble(0.0);
+                                snapshot.primaryResetsAt = primary.value("resets_at").toVariant().toLongLong();
+                                snapshot.primaryWindowMinutes = windowMin;
+                                snapshot.primaryLimitTimestamp = eventSec;
 
-                            if (rateLimits.value("secondary").isObject()) {
-                                QJsonObject secondary = rateLimits.value("secondary").toObject();
-                                snapshot.secondaryUsedPercent = secondary.value("used_percent").toDouble(0.0);
-                                snapshot.secondaryResetsAt = secondary.value("resets_at").toVariant().toLongLong();
+                                if (rateLimits.value("secondary").isObject()) {
+                                    QJsonObject secondary = rateLimits.value("secondary").toObject();
+                                    snapshot.secondaryUsedPercent = secondary.value("used_percent").toDouble(0.0);
+                                    snapshot.secondaryResetsAt = secondary.value("resets_at").toVariant().toLongLong();
+                                }
                             }
-                            foundLimits = true;
                         } else {
                             // Reserve / 7-day model quota (e.g. gpt-reserve with window_minutes: 10080)
-                            // Never overwrite primary 5h limit with weekly numbers!
+                            // Never overwrite primary 5h limit with weekly numbers or dig into ancient turns!
                             if (snapshot.secondaryResetsAt == 0) {
                                 snapshot.secondaryUsedPercent = primary.value("used_percent").toDouble(0.0);
                                 snapshot.secondaryResetsAt = primary.value("resets_at").toVariant().toLongLong();
